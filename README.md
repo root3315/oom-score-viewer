@@ -78,6 +78,16 @@ Columns:
 - **ADJ** - OOM score adjustment (-1000 to 1000)
 - **RSS** - Resident Set Size (actual memory used)
 
+## Color Output
+
+OOM scores are color-coded for quick visual assessment:
+
+- **Red** - High score (≥700): Process is very likely to be killed
+- **Yellow** - Medium score (300-699): Moderate risk
+- **Green** - Low score (<300): Low risk
+
+Color output is automatic when running in a supported terminal. Set `NO_COLOR=1` to disable colors.
+
 ## Why I Made This
 
 I was debugging a server that kept getting OOM killed and got tired of running `cat /proc/*/oom_score` in a loop. This script does that but actually shows you something useful.
