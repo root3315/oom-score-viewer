@@ -59,6 +59,14 @@ Include processes with OOM killer disabled (normally hidden):
 ./oom_score_viewer.py --all
 ```
 
+Output as JSON for scripting and automation:
+
+```bash
+./oom_score_viewer.py --json
+./oom_score_viewer.py -p 1234 --json
+./oom_score_viewer.py -f nginx --json | jq '.processes[].pid'
+```
+
 ## Output
 
 ```

@@ -6,6 +6,7 @@ Reads OOM (Out of Memory) scores from /proc filesystem and displays
 them in a sorted, human-readable format.
 """
 
+import json
 import os
 import sys
 import argparse
@@ -132,15 +133,31 @@ def format_size(size_kb: int) -> str:
         return f"{size_kb}K"
 
 
+def processes_to_json(
+    processes: List[Tuple[int, str, int, int, int]],
+) -> str:
+    """Convert a list of processes to a JSON string."""
+    entries = []
+    for pid, name, oom_score, oom_score_adj, rss_kb in processes:
+        entries.append({
+            "pid": pid,
+            "name": name,
+            "oom_score": oom_score,
+            "oom_score_adj": oom_score_adj,
+            "rss_kb": rss_kb,
+        })
+    return json.dumps({"processes": entries}, indent=2)
+
+
 def display_processes(
     processes: List[Tuple[int, str, int, int, int]],
     limit: int = 0,
     filter_name: Optional[str] = None,
-    show_all: bool = False
+    show_all: bool = False,
+    as_json: bool = False,
 ) -> None:
-    """Display process OOM information in a formatted table."""
+    """Display process OOM information in a formatted table or JSON."""
 
-    use_color = supports_color()
     filtered = processes
 
     if filter_name:
@@ -154,9 +171,15 @@ def display_processes(
     if limit > 0:
         sorted_processes = sorted_processes[:limit]
 
+    if as_json:
+        print(processes_to_json(sorted_processes))
+        return
+
     if not sorted_processes:
         print("No processes found matching criteria.")
         return
+
+    use_color = supports_color()
 
     print(f"{'PID':>8}  {'NAME':<25}  {'OOM':>6}  {'ADJ':>6}  {'RSS':>10}")
     print("-" * 62)
@@ -179,7 +202,7 @@ def display_processes(
         print("(Use --all to include processes with oom_score_adj=-1000)")
 
 
-def display_single_process(pid: int) -> None:
+def display_single_process(pid: int, as_json: bool = False) -> None:
     """Display detailed OOM info for a single process."""
     info = get_process_info(pid)
 
@@ -188,6 +211,37 @@ def display_single_process(pid: int) -> None:
         sys.exit(1)
 
     name, oom_score, oom_score_adj, rss_kb = info
+
+    if as_json:
+        data = {
+            "pid": pid,
+            "name": name,
+            "oom_score": oom_score,
+            "oom_score_adj": oom_score_adj,
+            "rss_kb": rss_kb,
+        }
+
+        if oom_score_adj == -1000:
+            data["status"] = "OOM killer disabled for this process"
+        elif oom_score_adj < 0:
+            data["status"] = "Less likely to be killed"
+        elif oom_score_adj > 0:
+            data["status"] = "More likely to be killed"
+        else:
+            data["status"] = "Default OOM behavior"
+
+        cmdline_path = PROC_PATH / str(pid) / "cmdline"
+        if cmdline_path.exists():
+            try:
+                cmdline = cmdline_path.read_text().replace("\x00", " ").strip()
+                if cmdline:
+                    data["command"] = cmdline[:200]
+            except (PermissionError, FileNotFoundError):
+                pass
+
+        print(json.dumps(data, indent=2))
+        return
+
     use_color = supports_color()
 
     print(f"PID:           {pid}")
@@ -229,6 +283,7 @@ Examples:
   %(prog)s -p 1234            Show detailed info for PID 1234
   %(prog)s -f nginx           Filter processes matching 'nginx'
   %(prog)s --all              Include processes with OOM killer disabled
+  %(prog)s --json             Output as JSON for scripting
         """
     )
 
@@ -258,10 +313,17 @@ Examples:
         help="Include processes with oom_score_adj=-1000 (OOM killer disabled)"
     )
 
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="as_json",
+        help="Output results as JSON"
+    )
+
     args = parser.parse_args()
 
     if args.pid is not None:
-        display_single_process(args.pid)
+        display_single_process(args.pid, as_json=args.as_json)
     else:
         processes = get_all_processes()
 
@@ -273,7 +335,8 @@ Examples:
             processes,
             limit=args.limit,
             filter_name=args.filter_name,
-            show_all=args.all
+            show_all=args.all,
+            as_json=args.as_json,
         )
 
 
