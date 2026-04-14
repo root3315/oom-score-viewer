@@ -155,6 +155,7 @@ def display_processes(
     filter_name: Optional[str] = None,
     show_all: bool = False,
     as_json: bool = False,
+    sort_by: str = "oom",
 ) -> None:
     """Display process OOM information in a formatted table or JSON."""
 
@@ -166,7 +167,10 @@ def display_processes(
     if not show_all:
         filtered = [p for p in filtered if p[3] != -1000]
 
-    sorted_processes = sorted(filtered, key=lambda x: x[2], reverse=True)
+    if sort_by == "rss":
+        sorted_processes = sorted(filtered, key=lambda x: x[4], reverse=True)
+    else:
+        sorted_processes = sorted(filtered, key=lambda x: x[2], reverse=True)
 
     if limit > 0:
         sorted_processes = sorted_processes[:limit]
@@ -181,6 +185,7 @@ def display_processes(
 
     use_color = supports_color()
 
+    sort_label = "RSS" if sort_by == "rss" else "OOM"
     print(f"{'PID':>8}  {'NAME':<25}  {'OOM':>6}  {'ADJ':>6}  {'RSS':>10}")
     print("-" * 62)
 
@@ -197,6 +202,7 @@ def display_processes(
 
     print("-" * 62)
     print(f"Total processes shown: {len(sorted_processes)}")
+    print(f"Sorted by: {sort_label} (descending)")
 
     if not show_all:
         print("(Use --all to include processes with oom_score_adj=-1000)")
@@ -284,6 +290,7 @@ Examples:
   %(prog)s -f nginx           Filter processes matching 'nginx'
   %(prog)s --all              Include processes with OOM killer disabled
   %(prog)s --json             Output as JSON for scripting
+  %(prog)s --sort rss         Sort by memory usage (RSS) instead of OOM score
         """
     )
 
@@ -320,6 +327,13 @@ Examples:
         help="Output results as JSON"
     )
 
+    parser.add_argument(
+        "--sort",
+        choices=["oom", "rss"],
+        default="oom",
+        help="Sort by OOM score (default) or RSS memory usage"
+    )
+
     args = parser.parse_args()
 
     if args.pid is not None:
@@ -337,6 +351,7 @@ Examples:
             filter_name=args.filter_name,
             show_all=args.all,
             as_json=args.as_json,
+            sort_by=args.sort,
         )
 
 

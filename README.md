@@ -40,6 +40,13 @@ Show only the top 15 processes:
 ./oom_score_viewer.py -n 15
 ```
 
+Sort by memory usage (RSS) instead of OOM score:
+
+```bash
+./oom_score_viewer.py --sort rss
+./oom_score_viewer.py --sort rss -n 10
+```
+
 Get detailed info for a specific PID:
 
 ```bash
@@ -77,6 +84,7 @@ Output as JSON for scripting and automation:
      901  node                        892      0     420.3M
 --------------------------------------------------------------
 Total processes shown: 3
+Sorted by: OOM (descending)
 ```
 
 Columns:
@@ -85,6 +93,11 @@ Columns:
 - **OOM** - Current OOM score (0-1000 typically)
 - **ADJ** - OOM score adjustment (-1000 to 1000)
 - **RSS** - Resident Set Size (actual memory used)
+
+## Sorting
+
+- **`--sort oom`** (default) - Sort by OOM score, highest first
+- **`--sort rss`** - Sort by memory usage (RSS), highest first
 
 ## Color Output
 
